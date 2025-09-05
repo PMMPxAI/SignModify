@@ -1,0 +1,6 @@
+name: SignModify
+main: PMMPxAI\SignModify\Main
+version: 1.1.0
+api: 5.0.0
+author: PMMPxAI
+description: Right-click front or back of signs to edit that side
