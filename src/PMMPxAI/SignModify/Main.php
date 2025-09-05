@@ -71,8 +71,8 @@ final class Main extends PluginBase implements Listener{
         $front = !$this->isFrontInteraction($block, $player->getLocation()->getYaw(), $event->getFace(), $player->getPosition(), $pos->add(0.5, 0.5, 0.5));
         $block->setEditorEntityRuntimeId($player->getId());
         $pos->getWorld()->setBlock($pos, $block);
-        $event->setUseBlock(false);
-        $event->setUseItem(false);
+        // Cancel the interaction to prevent default block/item usage (API 5)
+        $event->cancel();
         $packet = OpenSignPacket::create(new BlockPosition($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ()), $front);
         $player->getNetworkSession()->sendDataPacket($packet);
         $this->session[$player->getUniqueId()->getBytes()] = [
@@ -165,7 +165,8 @@ final class Main extends PluginBase implements Listener{
             return;
         }
         $pos = $block->getPosition();
-        $this->deleteBackText($pos->getWorld(), $pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
+        // Remove stored back text when the sign is broken
+        $this->store->delete($pos->getWorld(), $pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
         $cx = $pos->getFloorX() >> 4;
         $cz = $pos->getFloorZ() >> 4;
         $worldKey = $pos->getWorld()->getFolderName();
@@ -338,14 +339,6 @@ final class Main extends PluginBase implements Listener{
         $event->cancel();
     }
 
-    private function chunkKey(int $cx, int $cz) : string{
-        return $cx . '_' . $cz;
-    }
-
-    private function posKey(int $x, int $y, int $z) : string{
-        return $x . ':' . $y . ':' . $z;
-    }
-
     private function sideNbt(SignText $text, int $argb, bool $glowing) : CompoundTag{
         return CompoundTag::create()
             ->setString(TileSign::TAG_TEXT_BLOB, rtrim(implode("\n", $text->getLines()), "\n"))
@@ -358,6 +351,8 @@ final class Main extends PluginBase implements Listener{
         $argb = $front->getBaseColor()->toARGB();
         $frontNbt = $this->sideNbt($front, $argb, $front->isGlowing());
         $backNbt = $this->sideNbt($back, $argb, $front->isGlowing());
+        // API 5: TileSign may not expose isWaxed(); default to not waxed when unavailable
+        $waxedByte = method_exists($tile, 'isWaxed') && $tile->isWaxed() ? 1 : 0;
         $root = CompoundTag::create()
             ->setString(TileSign::TAG_ID, "Sign")
             ->setInt(TileSign::TAG_X, $x)
@@ -365,7 +360,7 @@ final class Main extends PluginBase implements Listener{
             ->setInt(TileSign::TAG_Z, $z)
             ->setTag(TileSign::TAG_FRONT_TEXT, $frontNbt)
             ->setTag(TileSign::TAG_BACK_TEXT, $backNbt)
-            ->setByte(TileSign::TAG_WAXED, $tile->isWaxed() ? 1 : 0)
+            ->setByte(TileSign::TAG_WAXED, $waxedByte)
             ->setLong(TileSign::TAG_LOCKED_FOR_EDITING_BY, -1);
         $pkt = BlockActorDataPacket::create(new BlockPosition($x, $y, $z), new CacheableNbt($root));
         if($only !== null){
