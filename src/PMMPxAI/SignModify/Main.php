@@ -71,7 +71,6 @@ final class Main extends PluginBase implements Listener{
         $front = !$this->isFrontInteraction($block, $player->getLocation()->getYaw(), $event->getFace(), $player->getPosition(), $pos->add(0.5, 0.5, 0.5));
         $block->setEditorEntityRuntimeId($player->getId());
         $pos->getWorld()->setBlock($pos, $block);
-        // Cancel the interaction to prevent default block/item usage (API 5)
         $event->cancel();
         $packet = OpenSignPacket::create(new BlockPosition($pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ()), $front);
         $player->getNetworkSession()->sendDataPacket($packet);
@@ -165,7 +164,6 @@ final class Main extends PluginBase implements Listener{
             return;
         }
         $pos = $block->getPosition();
-        // Remove stored back text when the sign is broken
         $this->store->delete($pos->getWorld(), $pos->getFloorX(), $pos->getFloorY(), $pos->getFloorZ());
         $cx = $pos->getFloorX() >> 4;
         $cz = $pos->getFloorZ() >> 4;
@@ -351,7 +349,6 @@ final class Main extends PluginBase implements Listener{
         $argb = $front->getBaseColor()->toARGB();
         $frontNbt = $this->sideNbt($front, $argb, $front->isGlowing());
         $backNbt = $this->sideNbt($back, $argb, $front->isGlowing());
-        // API 5: TileSign may not expose isWaxed(); default to not waxed when unavailable
         $waxedByte = method_exists($tile, 'isWaxed') && $tile->isWaxed() ? 1 : 0;
         $root = CompoundTag::create()
             ->setString(TileSign::TAG_ID, "Sign")
